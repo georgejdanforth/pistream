@@ -19,7 +19,7 @@ def main():
     fifoReaderQueue = Queue()
     fifoReader = FifoReader(fifoPath, fifoReaderQueue, fifoReaderLock)
 
-    shairport = subprocess.Popen(["./shairport -M ~/shairport1/metadata"],
+    shairport = subprocess.Popen(["shairport -M ~/pistream/metadata"],
                                  stdout=subprocess.PIPE,
                                  stderr=subprocess.PIPE,
                                  shell=True,
