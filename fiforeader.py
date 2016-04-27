@@ -22,12 +22,12 @@ class FifoReader(Thread):
 
     def read_fifo(self):
         try:
-            metadata_bytes = os.read(self.fifo, 2048)
-            metadata = metadata_bytes.decode('utf-8')
+            data_bytes = os.read(self.fifo, 2048)
+            data = data_bytes.decode('utf-8')
         except BlockingIOError:
             return None
 
-        if metadata == '':
+        if data == '':
             return None
         else:
-            return metadata
+            return data
