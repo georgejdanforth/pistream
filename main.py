@@ -4,65 +4,51 @@ import subprocess
 from queue import Queue
 from threading import Thread, Lock
 
-from fiforeader import FifoReader
+from metadatareader import MetadataReader
 from shairportstreamreader import StreamReader
 
 
-fifoPath = "metadata/now_playing"
+subProcArgs = ["shairport -M ~/pistream/metadata -l shairout -e shairout"]
+metadataPath = "metadata/now_playing"
 
 
 def main():
 
     startTime = time.time()
 
-    fifoReaderLock = Lock()
-    fifoReaderQueue = Queue()
-    fifoReader = FifoReader(fifoPath, fifoReaderQueue, fifoReaderLock)
+    metadataReaderLock = Lock()
+    metadataReaderQueue = Queue()
+    metadataReader = MetadataReader(metadataPath,
+                                    metadataReaderQueue,
+                                    metadataReaderLock)
 
-    shairport = subprocess.Popen(["shairport -M ~/pistream/metadata"],
-                                 stdout=subprocess.PIPE,
-                                 stderr=subprocess.PIPE,
+    shairport = subprocess.Popen(subProcArgs,
+                                 stdout=None,
+                                 stderr=None,
                                  shell=True,
-                                 universal_newlines=False)
-    outLock = Lock()
-    outQueue = Queue()
-    outReader = StreamReader(shairport.stdout, outQueue, outLock)
-    errLock = Lock()
-    errQueue = Queue()
-    errReader = StreamReader(shairport.stderr, errQueue, errLock)
+                                 universal_newlines=True)
+
+    outReaderLock = Lock()
+    outReaderQueue = Queue()
+    outReader = StreamReader("shairout", outReaderQueue, outReaderLock)
 
     outReader.start()
-    errReader.start()
-    fifoReader.start()
+    metadataReader.start()
 
     while time.time() - startTime < 45:
-        while not outReader.eof() or not errReader.eof():
-            while not outQueue.empty():
-                with outLock:
-                    line = outQueue.get()
-                    print("stdout:", line)
-            while not errQueue.empty():
-                with errLock:
-                    line = errQueue.get()
-                    print("stderr:", line)
         time.sleep(0.1)
 
-    with fifoReaderLock:
-        fifoReaderQueue.put('terminate')
+    with metadataReaderLock:
+        metadataReaderQueue.put('terminate')
+    with outReaderLock:
+        outReaderQueue.put('terminate')
 
-    while fifoReader.is_alive():
+    while metadataReader.is_alive() or outReader.is_alive:
         pass
-    fifoReader.join()
+    metadataReader.join()
+    outReader.join()
 
     shairport.terminate()
-
-    while not outReader.eof() or not errReader.eof():
-        pass
-    outReader.join()
-    errReader.join()
-
-    shairport.stdout.close()
-    shairport.stderr.close()
 
 
 if __name__ == '__main__':

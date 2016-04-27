@@ -1,25 +1,23 @@
-"""
-Code in this module based on:
-http://stefaanlippens.net/python-asynchronous-subprocess-pipe-reading
-"""
 import os
 import time
 from queue import Queue
 from threading import Thread, Lock
 
+from fiforeader import FifoReader
 
-class StreamReader(Thread):
 
-    def __init__(self, stream, queue, lock):
-        super().__init__(daemon=True)
-        self.stream = stream
-        self.queue = queue
-        self.lock = lock
+class StreamReader(FifoReader):
+
+    def __init__(self, fifoPath, queue, lock, interval=0.1):
+        super().__init__(fifoPath, queue, lock, interval)
+        self.listening = False
+        self.streaming = False
 
     def run(self):
-        for line in iter(self.stream.readline, ''):
-            with self.lock:
-                self.queue.put(line)
-
-    def eof(self):
-        return not self.is_alive() and self.queue.empty()
+        prev_out = None
+        while self.get_cmd() != 'terminate':
+            out = self.read_fifo()
+            if (out != prev_out) and (out is not None):
+                print(out)
+            time.sleep(self.interval)
+        os.close(self.fifo)
