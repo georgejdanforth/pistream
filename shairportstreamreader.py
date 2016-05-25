@@ -1,23 +1,18 @@
 import os
 import time
 from queue import Queue
-from threading import Thread, Lock
+from threading import Thread, Event
 
 from fiforeader import FifoReader
 
 
 class StreamReader(FifoReader):
 
-    def __init__(self, fifoPath, queue, lock, interval=0.1):
-        super().__init__(fifoPath, queue, lock, interval)
-        self.listening = False
-        self.streaming = False
-
     def run(self):
         prev_out = None
-        while self.get_cmd() != 'terminate':
+        while not self.stopped():
             out = self.read_fifo()
             if (out != prev_out) and (out is not None):
-                print(out)
+                prev_out = out
+                print(out.strip())
             time.sleep(self.interval)
-        os.close(self.fifo)
